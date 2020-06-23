@@ -109,6 +109,7 @@ setuptools.setup(
             'mnn.js', 'mnn-metadata.json', 'mnn-schema.js',
             'mxnet.js', 'mxnet-metadata.json',
             'ncnn.js', 'ncnn-metadata.json',
+            'npu.js' , 'npu-metadata.json',
             'npz.js',
             'tnn.js', 'tnn-metadata.json',
             'onnx.js', 'onnx-metadata.json', 'onnx-proto.js',
