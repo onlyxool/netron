@@ -1157,6 +1157,7 @@ view.ModelFactoryService = class {
         this.register('./npz', [ '.npz', '.h5', '.hd5', '.hdf5' ]);
         this.register('./dl4j', [ '.zip' ]);
         this.register('./mlnet', [ '.zip' ]);
+        this.register('./npu', [ '.npumodel' ]);
     }
 
     register(id, extensions) {
@@ -1218,7 +1219,7 @@ view.ModelFactoryService = class {
                         const skip = knownUnsupportedIdentifiers.has(identifier);
                         const buffer = context.buffer;
                         const content = Array.from(buffer.subarray(0, Math.min(16, buffer.length))).map((c) => (c < 16 ? '0' : '') + c.toString(16)).join('');
-                        throw new ModelError("Unsupported file content (" + content + ") for extension '." + extension + "' in '" + identifier + "'.", !skip);
+                        throw new ModelError("1Unsupported file content (" + content + ") for extension '." + extension + "' in '" + identifier + "'.", !skip);
                     }
                 };
                 return nextModule();
