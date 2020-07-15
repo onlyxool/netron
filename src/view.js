@@ -29,6 +29,7 @@ view.View = class {
             this._showNames = false;
             this._searchText = '';
             this._modelFactoryService = new view.ModelFactoryService(this._host);
+            this._json = {};
             this._host.document.getElementById('zoom-in-button').addEventListener('click', () => {
                 this.zoomIn();
             });
@@ -886,6 +887,24 @@ view.View = class {
                 imageElement.src = 'data:image/svg+xml;base64,' + window.btoa(unescape(encodeURIComponent(data)));
                 this._host.document.body.insertBefore(imageElement, this._host.document.body.firstChild);
             }
+        } else if (this._activeGraph && (extension == 'json')) {
+            var length = 0;
+            for(var ever in this._json) {
+                length++;
+                break;
+            }
+            if (length > 0) {
+                var data = JSON.stringify(this._json, undefined, 4);
+                var blob = new Blob([data], {type: 'text/json'});
+                if (blob) {
+                    this._host.export(file, blob);
+                } else {
+                    const err = new Error();
+                    err.name = 'Error exporting json.';
+                    this._host.exception(err, false);
+                    this._host.error(err.name, err.message);
+                }
+            }
         }
     }
 
@@ -901,7 +920,7 @@ view.View = class {
 
     showNodeProperties(node, input) {
         if (node) {
-            const nodeSidebar = new sidebar.NodeSidebar(this._host, node);
+            const nodeSidebar = new sidebar.NodeSidebar(this._host, node, this._json);
             nodeSidebar.on('show-documentation', (/* sender, e */) => {
                 this.showNodeDocumentation(node);
             });
@@ -1219,7 +1238,7 @@ view.ModelFactoryService = class {
                         const skip = knownUnsupportedIdentifiers.has(identifier);
                         const buffer = context.buffer;
                         const content = Array.from(buffer.subarray(0, Math.min(16, buffer.length))).map((c) => (c < 16 ? '0' : '') + c.toString(16)).join('');
-                        throw new ModelError("1Unsupported file content (" + content + ") for extension '." + extension + "' in '" + identifier + "'.", !skip);
+                        throw new ModelError("Unsupported file content (" + content + ") for extension '." + extension + "' in '" + identifier + "'.", !skip);
                     }
                 };
                 return nextModule();

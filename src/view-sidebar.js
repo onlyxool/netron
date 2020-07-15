@@ -131,7 +131,7 @@ sidebar.Sidebar = class {
 
 sidebar.NodeSidebar = class {
 
-    constructor(host, node) {
+    constructor(host, node, json) {
         this._host = host;
         this._node = node;
         this._elements = [];
@@ -200,6 +200,11 @@ sidebar.NodeSidebar = class {
                 this._addOutput(output.name, output);
             }
         }
+
+        this._addHeader('16Bits');
+        const bits = new sidebar.IoCheckbox(this._host, node.name, json);
+        this._outputs.push(bits);
+        this._elements.push(bits.render());
 
         const divider = this._host.document.createElement('div');
         divider.setAttribute('style', 'margin-bottom: 20px');
@@ -360,6 +365,53 @@ sidebar.NodeSidebar = class {
         }
     }
 };
+
+sidebar.IoCheckbox = class {
+    constructor(host, name, json) {
+        this._host = host;
+        this._name = name;
+        this._json = json
+
+        const nameElement = this._host.document.createElement('div');
+        nameElement.className = 'sidebar-view-item-name';
+
+        const ioElement = this._host.document.createElement('input');
+        ioElement.setAttribute('type', 'checkbox');
+        ioElement.setAttribute('name', 'bits');
+        if (this._json.hasOwnProperty(name)) {
+            ioElement.setAttribute('checked', true);
+        }
+        ioElement.addEventListener('click', (e) => {
+            this.check(e);
+        });
+        nameElement.appendChild(ioElement);
+
+        const valueElement = this._host.document.createElement('div');
+        valueElement.className = 'sidebar-view-item-value-list';
+
+        this._element = this._host.document.createElement('div');
+        this._element.className = 'sidebar-view-item';
+        this._element.appendChild(nameElement);
+        this._element.appendChild(valueElement);
+    }
+
+    check(e) {
+        var bits_check = document.getElementsByName("bits");
+        if (bits_check[0].checked) {
+            this._json[this._name] = '16bits';
+        } else {
+            delete this._json[this._name];
+        }
+    }
+
+    render() {
+        return this._element;
+    }
+
+    toggle() {
+        this._value.toggle();
+    }
+}
 
 sidebar.NameValueView = class {
 
