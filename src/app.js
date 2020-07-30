@@ -133,6 +133,7 @@ class Application {
                     'pt', 'pth', 't7',
                     'pkl', 'joblib',
                     'pbtxt', 'prototxt',
+                    'npumodel',
                     'cfg',
                     'xml' ] }
             ]
