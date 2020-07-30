@@ -1,28 +1,27 @@
 /* jshint esversion: 6 */
 /* eslint "indent": [ "error", 4, { "SwitchCase": 1 } ] */
 
-var ncnn = ncnn || {};
+var npu = npu || {};
 var base = base || require('./base');
 
-// https://github.com/Tencent/ncnn/wiki/param-and-model-file-structure
-// https://github.com/Tencent/ncnn/wiki/operation-param-weight-table
 
-ncnn.ModelFactory = class {
+npu.ModelFactory = class {
 
     match(context) {
         const identifier = context.identifier.toLowerCase();
         if (identifier.endsWith('.npumodel')) {
             let text = context.text;
-            var version;
             text = text.substring(0, Math.min(text.length, 32));
             if (text.search('#') != -1) {
-                version = text.split('#').shift().trim();
-                const chip_no = text.split('#', 2)[1].substring(0,2);
+                this.version = text.split('#').shift().trim();
+                this.chip_no = text.split('#', 2)[1].substring(0,2);
             } else {
-                version = text.substring(0,15);
+                this.version = text.substring(0,15);
             }
-            if (version === '2020-06-09V0.08' || version === '2019-08-07V0.04') {
+            if (this.version === '2020-06-09V0.08' || this.version === '2019-08-07V0.04') {
                 return true;
+            } else {
+				throw new npu.Error('Unsupport npumodel version:' + this.version);
             }
         }
 /*
@@ -35,7 +34,7 @@ ncnn.ModelFactory = class {
                 }
             }
         }
-        if (identifier.endsWith('.bin') || identifier.endsWith('.weights.ncnn')) {
+        if (identifier.endsWith('.bin') || identifier.endsWith('.weights.npu')) {
             if (identifier == 'snapshot_blob.bin' || identifier === 'v8_context_snapshot.bin') {
                 return false;
             }
@@ -53,69 +52,36 @@ ncnn.ModelFactory = class {
     }
 
     open(context, host) {
-        return ncnn.Metadata.open(host).then((metadata) => {
+        return npu.Metadata.open(host, this.version).then((metadata) => {
             const identifier = context.identifier.toLowerCase();
-            console.log('csn' + identifier);
-            const param = (param, bin) => {
+            //const param = (param) => {
                 try {
-                    return new ncnn.Model(metadata, param, bin);
+                    return new npu.Model(metadata, context);
                 }
                 catch (error) {
                     const message = error && error.message ? error.message : error.toString();
-                    throw new ncnn.Error(message.replace(/\.$/, '') + " in '" + identifier + "'.");
+                    throw new npu.Error(message.replace(/\.$/, '') + " in '" + identifier + "'.");
                 }
-                console.log('wsn');
-            };
-            let bin = null;
-            if (identifier.endsWith('.param') || identifier.endsWith('.cfg.ncnn')) {
-                if (identifier.endsWith('.param')) {
-                    bin = context.identifier.substring(0, context.identifier.length - 6) + '.bin';
-                }
-                else if (identifier.endsWith('.cfg.ncnn')) {
-                    bin = context.identifier.substring(0, context.identifier.length - 9) + '.weights.ncnn';
-                }
-                return context.request(bin, null).then((bin) => {
-                    return param(context.text, bin);
-                }).catch(() => {
-                    return param(context.text, null);
-                });
-            }
-            else if (identifier.endsWith('.param.bin')) {
-                bin = context.identifier.substring(0, context.identifier.length - 10) + '.bin';
-                return context.request(bin, null).then((bin) => {
-                    return param(context.buffer, bin);
-                }).catch(() => {
-                    return param(context.buffer, null);
-                });
-            }
-            else if (identifier.endsWith('.bin') || identifier.endsWith('.weights.ncnn')) {
-                let text = null;
-                if (identifier.endsWith('bin')) {
-                    text = context.identifier.substring(0, context.identifier.length - 4) + '.param';
-                }
-                else if (identifier.endsWith('.weights.ncnn')) {
-                    text = context.identifier.substring(0, context.identifier.length - 13) + '.cfg.ncnn';
-                }
-                return context.request(text, 'utf-8').then((text) => {
-                    return param(text, context.buffer);
-                }).catch((error) => {
-                    const message = error && error.message ? error.message : error.toString();
-                    throw new ncnn.Error(message.replace(/\.$/, '') + " in '" + identifier + "'.");
-                });
-            }
+            //};
+            /*
+            return context.request(context, null).then((context) => {
+                return param(context.buffer, bin);
+            }).catch(() => {
+                return param(context.buffer, null);
+            }); */
         });
     }
 };
 
-ncnn.Model = class {
+npu.Model = class {
 
-    constructor(metadata, param, bin) {
+    constructor(metadata, context) {
         this._graphs = [];
-        this._graphs.push(new ncnn.Graph(metadata, param, bin));
+        this._graphs.push(new npu.Graph(metadata, context));
     }
 
     get format() {
-        return 'ncnn';
+        return 'npu';
     }
 
     get graphs() {
@@ -123,25 +89,42 @@ ncnn.Model = class {
     }
 };
 
-ncnn.Graph = class {
+npu.Graph = class {
 
-    constructor(metadata, param, bin) {
+    constructor(metadata, context) {
         this._inputs = [];
         this._outputs = [];
         this._nodes = [];
-        const blobReader = new ncnn.BlobReader(bin);
-        const reader = (typeof param == 'string') ? new ncnn.TextParamReader(param) : new ncnn.BinaryParamReader(metadata, param);
-        const layers = reader.layers;
-        for (const layer of layers) {
-            if (layer.type == 'Input') {
-                const dimensions = layer.attributes.map((a) => !isNaN(parseInt(a.value, 10)) ? parseInt(a.value, 10) : a.value);
-                const shape = new ncnn.TensorShape(dimensions);
-                const type = new ncnn.TensorType('float32', shape);
-                this._inputs.push(new ncnn.Parameter(layer.name, true, layer.outputs.map((output) => new ncnn.Argument(output, type, null))));
+        var version;
+        var chip_no;
+        const text = context.text;
+        var Layer_num;
+        var model;
+        if (text.search('#') != -1) {
+            version = text.split('#').shift().trim();
+            chip_no = text.split('#', 2)[1].substring(0,2);
+            switch (chip_no) {
+                case '01': { //vc718
+                    model = new npu.Binary718v4Reader(metadata, context.buffer);
+                    break;
+                }
+                case '02': { //vc768
+                    model = new npu.Binary768v8Reader(metadata, context.buffer);
+                    break;
+                }
             }
-            else {
-                this._nodes.push(new ncnn.Node(metadata, blobReader, layer));
+        } else { // old npumodel did't include chip number
+            version = text.substring(0,15);
+            if (version === '2019-08-07V0.04') { //vc718
+                model = new npu.Binary718v4Reader(metadata, context.buffer);
+            } else if (version === '2020-06-09V0.08') { //vc768
+                model = new npu.Binary768v8Reader(metadata, context.buffer);
             }
+        }
+
+		Layer_num = model.Layer_num;
+        for (let i = 1; i <= model.Layer_num; i++) {
+            this._nodes.push(model.getLayer(metadata));
         }
     }
 
@@ -158,7 +141,7 @@ ncnn.Graph = class {
     }
 };
 
-ncnn.Parameter = class {
+npu.Parameter = class {
 
     constructor(name, visible, args) {
         this._name = name;
@@ -179,11 +162,11 @@ ncnn.Parameter = class {
     }
 };
 
-ncnn.Argument = class {
+npu.Argument = class {
 
     constructor(name, type, initializer) {
         if (typeof name !== 'string') {
-            throw new ncnn.Error("Invalid argument identifier '" + JSON.stringify(name) + "'.");
+            throw new npu.Error("Invalid argument identifier '" + JSON.stringify(name) + "'.");
         }
         this._name = name;
         this._type = type || null;
@@ -206,166 +189,30 @@ ncnn.Argument = class {
     }
 };
 
-ncnn.Node = class {
+npu.Node = class {
 
-    constructor(metadata, blobReader, layer) {
+    constructor(metadata) {
         this._metadata = metadata;
         this._inputs = [];
         this._outputs = [];
         this._attributes = [];
-        this._type = layer.type;
-        this._name = layer.name;
-
-        const operator = metadata.operator(this._type);
-        if (operator) {
-            this._type = operator;
-        }
-
-        const schema = metadata.type(this._type);
-
-        const attributeMetadata = schema && schema.attributes ? schema && schema.attributes : [];
-        for (const attribute of layer.attributes) {
-            const attributeSchema = attributeMetadata[attribute.key];
-            this._attributes.push(new ncnn.Attribute(attributeSchema, attribute.key, attribute.value));
-        }
-
-        const inputs = layer.inputs;
-        let inputIndex = 0;
-        if (schema && schema.inputs) {
-            for (const inputDef of schema.inputs) {
-                if (inputIndex < inputs.length || inputDef.option != 'optional') {
-                    const inputCount = (inputDef.option == 'variadic') ? (inputs.length - inputIndex) : 1;
-                    const inputArguments = inputs.slice(inputIndex, inputIndex + inputCount).filter((id) => id != '' || inputDef.option != 'optional').map((id) => {
-                        return new ncnn.Argument(id, null, null);
-                    });
-                    this._inputs.push(new ncnn.Parameter(inputDef.name, true, inputArguments));
-                    inputIndex += inputCount;
-                }
-            }
-        }
-        this._inputs = this._inputs.concat(inputs.slice(inputIndex).map((input, index) => {
-            const inputName = ((inputIndex + index) == 0) ? 'input' : (inputIndex + index).toString();
-            return new ncnn.Parameter(inputName, true, [
-                new ncnn.Argument(input, null, null)
-            ]);
-        }));
-
-        const outputs = layer.outputs;
-        let outputIndex = 0;
-        if (schema && schema.outputs) {
-            for (const outputDef of schema.outputs) {
-                if (outputIndex < outputs.length || outputDef.option != 'optional') {
-                    const outputCount = (outputDef.option == 'variadic') ? (outputs.length - outputIndex) : 1;
-                    const outputArguments = outputs.slice(outputIndex, outputIndex + outputCount).map((id) => {
-                        return new ncnn.Argument(id, null, null);
-                    });
-                    this._outputs.push(new ncnn.Parameter(outputDef.name, true, outputArguments));
-                    outputIndex += outputCount;
-                }
-            }
-        }
-        this._outputs = this._outputs.concat(outputs.slice(outputIndex).map((output, index) => {
-            const outputName = ((outputIndex + index) == 0) ? 'output' : (outputIndex + index).toString();
-            return new ncnn.Parameter(outputName, true, [
-                new ncnn.Argument(output, null, null)
-            ]);
-        }));
-        switch (this._type) {
-            case 'BatchNorm': {
-                const channels = parseInt(layer.attr['0'] || 0, 10);
-                this._weight(blobReader, 'slope', [ channels ], 'float32');
-                this._weight(blobReader, 'mean', [ channels ], 'float32');
-                this._weight(blobReader, 'variance', [ channels ], 'float32');
-                this._weight(blobReader, 'bias', [ channels ], 'float32');
-                break;
-            }
-            case 'InnerProduct': {
-                const num_output = parseInt(layer.attr['0'] || 0, 10);
-                const weight_data_size = parseInt(layer.attr['2'] || 0, 10);
-                this._weight(blobReader, 'weight', [ num_output, weight_data_size / num_output ]);
-                if (layer.attr['1'] == '1') {
-                    this._weight(blobReader, 'bias', [ num_output ], 'float32');
-                }
-                break;
-            }
-            case 'Bias': {
-                const bias_data_size = parseInt(layer.attr['0'] || 0, 10);
-                this._weight(blobReader, 'bias', [ bias_data_size ], 'float32');
-                break;
-            }
-            case 'Embed': {
-                const num_output = parseInt(layer.attr['0'] || 0, 10);
-                const weight_data_size = parseInt(layer.attr['3'] || 0, 10);
-                this._weight(blobReader, 'weight', [ weight_data_size ]);
-                if (layer.attr['2'] == '1') {
-                    this._weight(blobReader, 'bias', [ num_output], 'float32');
-                }
-                break;
-            }
-            case 'Convolution':
-            case 'ConvolutionDepthWise':
-            case 'Deconvolution':
-            case 'DeconvolutionDepthWise': {
-                const num_output = parseInt(layer.attr['0'] || 0, 10);
-                const kernel_w = parseInt(layer.attr['1'] || 0, 10);
-                const kernel_h = parseInt(layer.attr['11'] || kernel_w, 10);
-                const weight_data_size = parseInt(layer.attr['6'] || 0, 10);
-                this._weight(blobReader, 'weight', [ num_output, weight_data_size / ( num_output * kernel_w * kernel_h), kernel_w, kernel_h ]);
-                if (layer.attr['5'] == '1') {
-                    this._weight(blobReader, 'bias', [ num_output ], 'float32');
-                }
-                break;
-            }
-            case 'Dequantize': {
-                if (layer.attr['1'] == '1') {
-                    const bias_data_size = parseInt(layer.attr['2'] || 0, 10);
-                    this._weight(blobReader, 'bias', [ bias_data_size ], 'float32');
-                }
-                break;
-            }
-            case 'Requantize': {
-                if (layer.attr['2'] == '1') {
-                    const bias_data_size = parseInt(layer.attr['3'] || 0, 10);
-                    this._weight(blobReader, 'bias', [ bias_data_size ], 'float32');
-                }
-                break;
-            }
-            case 'InstanceNorm': {
-                const channels = parseInt(layer.attr['0'] || 0, 10);
-                this._weight(blobReader, 'gamma', [ channels ], 'float32');
-                this._weight(blobReader, 'beta', [ channels ], 'float32');
-                break;
-            }
-            case 'Scale': {
-                const scale_data_size = parseInt(layer.attr['0'] || 0, 10);
-                if (scale_data_size != -233) {
-                    this._weight(blobReader, 'scale', [ scale_data_size], 'float32');
-                    if (layer.attr['1'] == '1') {
-                        this._weight(blobReader, 'bias', [ scale_data_size ], 'float32');
-                    }
-                }
-                break;
-            }
-            case 'Normalize': {
-                const scale_data_size = parseInt(layer.attr['3'] || 0, 10);
-                this._weight(blobReader, 'scale', [ scale_data_size ], 'float32');
-                break;
-            }
-            case 'PReLU': {
-                const num_slope = parseInt(layer.attr['0'] || 0, 10);
-                this._weight(blobReader, 'slope', [ num_slope ], 'float32');
-                break;
-            }
-        }
+        this._type = '';
+        this._name = '';
     }
 
     get type() {
         return this._type;
     }
+	set type(input_str) {
+		this._type = input_str;
+	}
 
     get name() {
         return this._name;
     }
+	set name(input_str) {
+		this._name = input_str;
+	}
 
     get metadata() {
         return this._metadata.type(this._type);
@@ -374,45 +221,60 @@ ncnn.Node = class {
     get attributes() {
         return this._attributes;
     }
+	append_attributes(input_obj) {
+		this._attributes.push(input_obj);
+	}
 
     get inputs() {
         return this._inputs;
     }
+	append_inputs(input_obj) {
+		this._inputs.push(input_obj);
+	}
 
     get outputs() {
         return this._outputs;
     }
+	append_outputs(input_obj) {
+		this._outputs.push(input_obj);
+	}
 
     _weight(blobReader, name, dimensions, dataType) {
         const blob = blobReader.read(dimensions, dataType);
         dataType = blob ? (blob.dataType || '?') : (dataType || '?');
         const data = blob ? blob.data : null;
-        this._inputs.push(new ncnn.Parameter(name, true, [
-            new ncnn.Argument('', null, new ncnn.Tensor(new ncnn.TensorType(dataType, new ncnn.TensorShape(dimensions)), data))
+        this._inputs.push(new npu.Parameter(name, true, [
+            new npu.Argument('', null, new npu.Tensor(new npu.TensorType(dataType, new npu.TensorShape(dimensions)), data))
         ]));
     }
 };
 
-ncnn.Attribute = class {
+npu.Attribute = class {
 
-    constructor(schema, key, value) {
+    constructor(schema, reader) {
         this._type = '';
-        this._name = key;
-        this._value = value;
+        this._name = '';
+        this._value = -1;
         if (schema) {
             this._name = schema.name;
             if (schema.type) {
                 this._type = schema.type;
             }
             switch (this._type) {
+                case 'uint16':
+					this._value = reader.getInt16(false);
+					break;
+                case 'int16':
+					this._value = reader.getInt16(true);
+					break;
+                case 'uint32':
+					this._value = reader.getInt32(false);
+					break;
                 case 'int32':
-                    this._value = parseInt(this._value, 10);
-                    break;
+					this._value = reader.getInt32(true);
+					break;
                 case 'float32':
-                    this._value = parseFloat(this._value);
-                    break;
-                case 'float32[]':
-                    this._value = this._value.map((v) => parseFloat(v));
+					this._value = reader.getFloat32();
                     break;
             }
             if (Object.prototype.hasOwnProperty.call(schema, 'visible') && !schema.visible) {
@@ -429,27 +291,43 @@ ncnn.Attribute = class {
     get type() {
         return this._type;
     }
+	set type(input_str) {
+		this._type = input_str;
+	}
 
     get name() {
         return this._name;
     }
+	set name(input_str) {
+		this._name = input_str;
+	}
 
     get value() {
         return this._value;
     }
+	set value(input_num) {
+		this._value = input_num;
+	}
 
     get visible() {
         return this._visible == false ? false : true;
     }
+	set visible(input_bool) {
+		this._visible = input_bool;
+	}
 };
 
-ncnn.Tensor = class {
+npu.Tensor = class {
 
-    constructor(type, data) {
+    constructor(id, type, data) {
         this._type = type;
         this._data = data;
+		this._id = id;
     }
 
+	get id() {
+		return this._id;
+	}
     get kind() {
         return 'Weight';
     }
@@ -556,7 +434,7 @@ ncnn.Tensor = class {
     }
 };
 
-ncnn.TensorType = class {
+npu.TensorType = class {
 
     constructor(dataType, shape) {
         this._dataType = dataType || '?';
@@ -576,7 +454,7 @@ ncnn.TensorType = class {
     }
 };
 
-ncnn.TensorShape = class {
+npu.TensorShape = class {
 
     constructor(dimensions) {
         this._dimensions = dimensions;
@@ -591,18 +469,27 @@ ncnn.TensorShape = class {
     }
 };
 
-ncnn.Metadata = class {
+npu.Metadata = class {
 
-    static open(host) {
-        if (ncnn.Metadata._metadata) {
-            return Promise.resolve(ncnn.Metadata._metadata);
+    static open(host, version) {
+        let json_url = 'npu-metadata';
+        switch (version) {
+            case '2020-06-09V0.08':
+                json_url = json_url + '768v8.json';
+                break;
+            case '2019-08-07V0.04':
+                json_url = json_url + '718v4.json';
+                break;
         }
-        return host.request(null, 'ncnn-metadata.json', 'utf-8').then((data) => {
-            ncnn.Metadata._metadata = new ncnn.Metadata(data);
-            return ncnn.Metadata._metadata;
+        if (npu.Metadata._metadata) {
+            return Promise.resolve(npu.Metadata._metadata);
+        }
+        return host.request(null, json_url, 'utf-8').then((data) => {
+            npu.Metadata._metadata = new npu.Metadata(data);
+            return npu.Metadata._metadata;
         }).catch(() => {
-            ncnn.Metadata._metadata = new ncnn.Metadata(null);
-            return ncnn.Metadata._metadatas;
+            npu.Metadata._metadata = new npu.Metadata(null);
+            return npu.Metadata._metadatas;
         });
     }
 
@@ -617,8 +504,8 @@ ncnn.Metadata = class {
                     if (item.name && item.schema) {
                         item.schema.name = item.name;
                         this._map.set(item.name, item.schema);
-                        if (Object.prototype.hasOwnProperty.call(item.schema, 'operator')) {
-                            this._operatorMap.set(item.schema.operator, item.name);
+                        if (Object.prototype.hasOwnProperty.call(item.schema, 'Opera')) {
+                            this._operatorMap.set(item.schema.Opera, item.name);
                         }
                     }
                 }
@@ -651,71 +538,264 @@ ncnn.Metadata = class {
     }
 };
 
-ncnn.TextParamReader = class {
+npu.Binary718v4Reader = class {
+    constructor(metadata, buffer) {
+        this.reader = new npu.BinaryReader(buffer);
+        this.Version = this.reader.getStr(32);
+        this.Name = this.reader.getStr(32);
+        this.Layer_num = this.reader.getInt32(false);
+        this.HwCmdBaseAddr = this.reader.getInt32(false);
+        this.HwCmdBaseVaddr = this.reader.getInt32(false);
+        this.reader.skip(4);
+        this.StartLayer = this.reader.getInt32(false);
+        this.reader.skip(4*31);
+        this.EndLayer = this.reader.getInt32(false);
+        this.reader.skip(4*31);
+        this.Hardware_Layer_num = this.reader.getInt32(false);
+        this.Hardware_Start_Layer = this.reader.getInt32(false);
+        this.Hardware_Exec_Layer = this.reader.getInt32(false);
+        this.Hardware_Command_Reg_Addr = this.reader.getInt32(false);
 
-    constructor(text) {
-        const lines = text.split(/\r?\n/);
-        const signature = lines.shift();
-        if (signature !== '7767517') {
-            throw new ncnn.Error('Invalid signature.');
-        }
-        const header = lines.shift().split(' ');
-        if (header.length !== 2) {
-            throw new ncnn.Error('Invalid header count.');
-        }
-
-        const layers = [];
-        while (lines.length > 0) {
-            const line = lines.shift().trim();
-            if (line.length > 0) {
-                const columns = line.split(' ').filter((s) => s.length != 0);
-                const layer = {};
-                layer.type = columns.shift();
-                layer.name = columns.shift();
-                const inputCount = parseInt(columns.shift(), 10);
-                const outputCount = parseInt(columns.shift(), 10);
-                layer.inputs = columns.splice(0, inputCount);
-                layer.outputs = columns.splice(0, outputCount);
-                layer.attr = {};
-                layer.attributes = [];
-                for (const column of columns) {
-                    const parts = column.split('=');
-                    if (parts.length === 2) {
-                        let key = parts[0].trim();
-                        let value = parts[1].trim();
-                        const keyInt = parseInt(key, 10);
-                        if (keyInt < 0) {
-                            value = value.split(',').map((v) => v.trim());
-                            value.shift();
-                            key = (-(keyInt + 23300)).toString();
-                        }
-                        layer.attr[key] = value;
-                        layer.attributes.push({ key: key, value: value });
-                    }
-                }
-                layers.push(layer);
-            }
-        }
-        this._layers = layers;
+        console.log('Version:' + this.Version.split('#').shift().trim());
+        console.log('Name:'+this.Name);
+        console.log(this.Layer_num + ' layers, ' + this.Hardware_Layer_num + ' hardware layers.');
+        console.log('StartLayer: ' + this.StartLayer + ' EndLayer: ' + this.EndLayer);
+        console.log('Hardware_Layer_num: ' + this.Hardware_Start_Layer + ' Hardware_Exec_Layer: ' + this.Hardware_Exec_Layer);
+        console.log(' HwCmdRegAddr:'+ this.Hardware_Command_Reg_Addr.toString(16));
     }
 
-    get layers() {
-        return this._layers;
-    }
+	getLayer(metadata) {
+		const data_length = 96;
+		const longest_param = 64;
+		var node = new npu.Node(metadata);
+		var in_num = this.reader.getInt32(false);
+		var out_num = this.reader.getInt32(false);
+		this.reader.skip(8);
+
+		var inputs = [];
+		var outputs = [];
+		for (let i = 1; i <= 4; i++) {
+			if (i <= in_num) {
+				const blob_reader = new npu.BlobReader718v4(this.reader)
+				inputs.push(blob_reader.getBlob());
+			} else {
+				this.reader.skip(data_length);
+			}
+		}
+
+		for (let o = 1; o <= 2; o++) {
+			if (o <= out_num) {
+				const blob_reader = new npu.BlobReader718v4(this.reader)
+				outputs.push(blob_reader.getBlob());
+			} else {
+				this.reader.skip(data_length);
+			}
+		}
+
+		var opera_code = this.reader.getInt32(false);
+        this.reader.skip(3*4);
+		node.name = this.reader.getStr(32);
+
+		if ((opera_code & 0x2) && (opera_code != 0x2)) {
+			opera_code = opera_code & ~(opera_code & 0x2)
+			var ReluThres = new npu.Attribute(null, null);
+			ReluThres.name = 'ReluThres';
+			ReluThres.type = 'float32';
+			ReluThres.value = this.reader.getFloat32();
+			node.append_attributes(ReluThres);
+			this.reader.skip(8); // f32PReluNegK s32PrePReluOutShift
+		} else if ((opera_code & 0x100) && (opera_code != 0x100)) {
+			opera_code = opera_code & ~(opera_code & 0x100)
+			this.reader.skip(4); // f32ReluxThres
+			var PReluNegK = new npu.Attribute(null, null);
+			PReluNegK.name = 'PReluNegK';
+			PReluNegK.type = 'float32';
+			PReluNegK.value = this.reader.getFloat32();
+			node.append_attributes(PReluNegK);
+
+			var PrePReluOutShift =  new npu.Attribute(null, null);
+			PrePReluOutShift.name = 'PrePReluOutShift';
+			PrePReluOutShift.type = 'int32';
+			PrePReluOutShift.value = this.reader.getInt32(true);
+			node.append_attributes(PrePReluOutShift);
+		} else {
+			this.reader.skip(12);// f32ReluxThres f32PReluNegK s32PrePReluOutShift
+		}
+		node.type = metadata.operator(opera_code);
+
+		const meta_input_blobs = metadata.type(node.type).inputs;
+		for (const meta_input_blob of meta_input_blobs) {
+			var blob = inputs.shift();
+			var blob_arg = new npu.Argument(blob.id.toString(), meta_input_blob.name, blob);//blob);
+			node.append_inputs(new npu.Parameter(meta_input_blob.name, true, [blob_arg]));
+		}
+		const meta_output_blobs = metadata.type(node.type).outputs;
+		for (const meta_output_blob of meta_output_blobs) {
+			var blob = outputs.shift();
+			var blob_arg = new npu.Argument(blob.id.toString(), meta_output_blob.name, blob);//blob);
+			node.append_outputs(new npu.Parameter(meta_output_blob.name, true, [blob_arg]));
+		}
+
+		const schema = metadata.type(node.type);
+		const attributeMetadata = schema && schema.attributes ? schema && schema.attributes : [];
+		var current_param_length = 0;
+        for (const attribute of attributeMetadata) {
+            node.append_attributes(new npu.Attribute(attribute, this.reader));
+            switch (attribute.type) {
+				case 'uint16':
+				case 'int16':
+					current_param_length = current_param_length + 2;
+					break;
+				case 'uint32':
+				case 'int32':
+				case 'float32':
+					current_param_length = current_param_length + 4;
+					break;
+			}
+        }
+		this.reader.skip(longest_param - current_param_length);
+
+		return node;
+	}
 };
 
-ncnn.BinaryParamReader = class {
+npu.Binary768v8Reader = class {
+    constructor(metadata, buffer) {
+        this.reader = new npu.BinaryReader(buffer);
+        this.Version = this.reader.getStr(32);
+        this.Name = this.reader.getStr(32);
+        this.Layer_num = this.reader.getInt32(false);
+        this.StartLayer = this.reader.getInt32(false);
+        this.EndLayer = this.reader.getInt32(false);
+        this.Hardware_Layer_num = this.reader.getInt32(false);
+        this.Hardware_Start_Layer = this.reader.getInt32(false);
+        this.Hardware_Exec_Layer = this.reader.getInt32(false);
+        this.Hardware_Command_Base_Addr = this.reader.getInt32(false);
+        this.Hardware_Command_Reg_Addr = this.reader.getInt32(false);
+        this.Hardware_Command_base_Vaddr = this.reader.getInt64(false);
+
+        console.log('Version:' + this.Version.split('#').shift().trim());
+        console.log('Name:'+this.Name);
+        console.log(this.Layer_num + ' layers, ' + this.Hardware_Layer_num + ' hardware layers.');
+        console.log('StartLayer: ' + this.StartLayer + ' EndLayer: ' + this.EndLayer);
+        console.log('Hardware_Layer_num: ' + this.Hardware_Start_Layer + ' Hardware_Exec_Layer: ' + this.Hardware_Exec_Layer);
+        console.log('HwCmdBaseAddr: ' + this.Hardware_Command_Base_Addr.toString(16) + ' HwCmdRegAddr:'+
+				this.Hardware_Command_Reg_Addr.toString(16) + ' HwCmdBaseVaddr:' + this.Hardware_Command_base_Vaddr.toString(16));
+    }
+
+	getLayer(metadata) {
+		const data_length = 96;
+		const longest_param = 28;//24;
+		var node = new npu.Node(metadata);
+		var in_num = this.reader.getInt32(false);
+		var out_num = this.reader.getInt32(false);
+		this.reader.skip(8);
+
+		var inputs = [];
+		var outputs = [];
+		for (let i = 1; i <= 4; i++) {
+			if (i <= in_num) {
+				const blob_reader = new npu.BlobReader768v8(this.reader)
+				inputs.push(blob_reader.getBlob());
+			} else {
+				this.reader.skip(data_length);
+			}
+		}
+
+		for (let o = 1; o <= 2; o++) {
+			if (o <= out_num) {
+				const blob_reader = new npu.BlobReader768v8(this.reader)
+				outputs.push(blob_reader.getBlob());
+			} else {
+				this.reader.skip(data_length);
+			}
+		}
+
+		node.name = this.reader.getStr(32);
+		var opera_code = this.reader.getInt32(false);
+
+		var Round = new npu.Attribute(null, null);
+		Round.name = 'Round';
+		Round.type = 'uint32';
+		Round.value = this.reader.getInt32(false);
+		node.append_attributes(Round);
+
+		if ((opera_code & 0x2) && (opera_code != 0x2)) {
+			opera_code = opera_code & ~(opera_code & 0x2)
+			var ReluThres = new npu.Attribute(null, null);
+			ReluThres.name = 'ReluThres';
+			ReluThres.type = 'float32';
+			ReluThres.value = this.reader.getFloat32();
+			node.append_attributes(ReluThres);
+			this.reader.skip(8); // f32PReluNegK s32PrePReluOutShift
+		} else if ((opera_code & 0x100) && (opera_code != 0x100)) {
+			opera_code = opera_code & ~(opera_code & 0x100)
+			this.reader.skip(4); // f32ReluxThres
+			var PReluNegK = new npu.Attribute(null, null);
+			PReluNegK.name = 'PReluNegK';
+			PReluNegK.type = 'float32';
+			PReluNegK.value = this.reader.getFloat32();
+			node.append_attributes(PReluNegK);
+
+			var PrePReluOutShift =  new npu.Attribute(null, null);
+			PrePReluOutShift.name = 'PrePReluOutShift';
+			PrePReluOutShift.type = 'int32';
+			PrePReluOutShift.value = this.reader.getInt32(true);
+			node.append_attributes(PrePReluOutShift);
+		} else {
+			this.reader.skip(12);// f32ReluxThres f32PReluNegK s32PrePReluOutShift
+		}
+		node.type = metadata.operator(opera_code);
+
+		const meta_input_blobs = metadata.type(node.type).inputs;
+		for (const meta_input_blob of meta_input_blobs) {
+			var blob = inputs.shift();
+			var blob_arg = new npu.Argument(blob.id.toString(), meta_input_blob.name, blob);//blob);
+			node.append_inputs(new npu.Parameter(meta_input_blob.name, true, [blob_arg]));
+		}
+		const meta_output_blobs = metadata.type(node.type).outputs;
+		for (const meta_output_blob of meta_output_blobs) {
+			var blob = outputs.shift();
+			var blob_arg = new npu.Argument(blob.id.toString(), meta_output_blob.name, blob);//blob);
+			node.append_outputs(new npu.Parameter(meta_output_blob.name, true, [blob_arg]));
+		}
+
+		const schema = metadata.type(node.type);
+		const attributeMetadata = schema && schema.attributes ? schema && schema.attributes : [];
+		var current_param_length = 0;
+		for (const attribute of attributeMetadata) {
+        	node.append_attributes(new npu.Attribute(attribute, this.reader));
+			switch (attribute.type) {
+				case 'uint16':
+				case 'int16':
+					current_param_length = current_param_length + 2;
+					break;
+				case 'uint32':
+				case 'int32':
+				case 'float32':
+					current_param_length = current_param_length + 4;
+					break;
+			}
+        }
+		this.reader.skip(longest_param - current_param_length);
+
+		return node;
+	}
+};
+npu.BinaryLayerReader = class {};
+
+npu.BinaryParamReader = class {
 
     constructor(metadata, buffer) {
-        const reader = new ncnn.BinaryReader(buffer);
-        if (reader.int32() !== 0x007685DD) {
-            throw new ncnn.Error('Invalid signature.');
+        const reader = new npu.BinaryReader(buffer);
+        if (reader.getInt32() !== 0x007685DD) {
+            throw new npu.Error('Invalid signature.');
         }
-        const layerCount = reader.int32();
-        /* const blobCount = */ reader.int32();
+        const layerCount = reader.getInt32();
+        /* const blobCount = */ reader.getInt32();
         const layers = [];
         for (let i = 0; i < layerCount; i++) {
-            const typeIndex = reader.int32();
+            const typeIndex = reader.getInt32();
             const operator = metadata.operator(typeIndex);
             const layer = {
                 type: operator || typeIndex.toString(),
@@ -725,35 +805,35 @@ ncnn.BinaryParamReader = class {
                 attr: {},
                 attributes: []
             };
-            const inputCount = reader.int32();
-            const outputCount = reader.int32();
+            const inputCount = reader.getInt32();
+            const outputCount = reader.getInt32();
             for (let j = 0; j < inputCount; j++) {
-                layer.inputs.push(reader.int32().toString());
+                layer.inputs.push(reader.getInt32().toString());
             }
             for (let j = 0; j < outputCount; j++) {
-                layer.outputs.push(reader.int32().toString());
+                layer.outputs.push(reader.getInt32().toString());
             }
-            let id = reader.int32();
+            let id = reader.getInt32();
             while (id != -233) {
                 let isArray = id <= -23300;
                 if (isArray) {
                     id = -id - 23300;
                 }
                 if (isArray) {
-                    const len = reader.int32();
+                    const len = reader.getInt32();
                     const values = [];
                     for (let i = 0; i < len; i++) {
-                        values.push(reader.int32());
+                        values.push(reader.getInt32());
                     }
                     layer.attributes.push({ key: id.toString(), value: values.toString() });
                     layer.attr[id.toString()] = values;
                 }
                 else {
-                    const value = reader.int32();
+                    const value = reader.getInt32();
                     layer.attributes.push({ key: id.toString(), value: value.toString() });
                     layer.attr[id.toString()] = value.toString();
                 }
-                id = reader.int32();
+                id = reader.getInt32();
             }
             layers.push(layer);
         }
@@ -765,88 +845,124 @@ ncnn.BinaryParamReader = class {
     }
 };
 
-ncnn.BlobReader = class {
+npu.BlobReader718v4 = class {
 
     constructor(buffer) {
         this._buffer = buffer;
-        this._position = 0;
+		this._name = '';
     }
 
-    read(shape, dataType) {
-        if (this._buffer) {
-            if (!dataType) {
-                if (this._buffer && this._position + 4 < this._buffer.length) {
-                    const f0 = this._buffer[this._position++];
-                    const f1 = this._buffer[this._position++];
-                    const f2 = this._buffer[this._position++];
-                    const f3 = this._buffer[this._position++];
-                    const type = f0 | f1 << 8 | f2 << 16 | f3 << 24;
-                    switch (type) {
-                        case 0x00000000:
-                            dataType = 'float32';
-                            break;
-                        case 0x01306B47:
-                            dataType = 'float16';
-                            break;
-                        case 0x000D4B38:
-                            dataType = 'int8';
-                            break;
-                        case 0x00000001:
-                            dataType = 'qint8';
-                            break;
-                        case 0x0002C056: // size * sizeof(float) - raw data with extra scaling
-                        default:
-                            throw new ncnn.Error("Unknown weight type '" + type + "'.");
-                    }
-                }
-                else {
-                    this._buffer = null;
-                }
-            }
-            let data = null;
-            let size = 1;
-            if (shape) {
-                for (const dimension of shape) {
-                    size *= dimension;
-                }
-            }
-            else {
-                this._buffer = null;
-            }
-            if (this._buffer) {
-                if (dataType) {
-                    const position = this._position;
-                    switch (dataType) {
-                        case 'float32':
-                            size *= 4;
-                            this._position += size;
-                            data = this._buffer.subarray(position, this._position);
-                            break;
-                        case 'float16':
-                            size *= 2;
-                            this._position += size;
-                            data = this._buffer.subarray(position, this._position);
-                            break;
-                        case 'int8':
-                            this._position += size;
-                            data = this._buffer.subarray(position, this._position);
-                            break;
-                        case 'qint8':
-                            this._position += size + 1024;
-                            data = null;
-                            break;
-                        default:
-                            throw new ncnn.Error("Unknown weight type '" + dataType + "'.");
-                    }
-                }
-            }
-            return { dataType: dataType, data: data };
+    getBlob() {
+        var addr = this._buffer.getInt32(false);
+        var h = this._buffer.getInt32(false);
+        var w = this._buffer.getInt32(false);
+        var c = this._buffer.getInt32(false);
+        var BitWidth = this._buffer.getInt32(false);
+        var ShiftBits = this._buffer.getInt32(true);
+        var PadMode = this._buffer.getInt32(false);
+        var PadTop = this._buffer.getInt32(false);
+        var PadBottom = this._buffer.getInt32(false);
+        var PadLeft = this._buffer.getInt32(false);
+        var PadRight = this._buffer.getInt32(false);
+        var Align = this._buffer.getInt32(false);
+        var BufId = this._buffer.getInt32(false);
+        var FileOffset = this._buffer.getInt32(false);
+        var Offset = this._buffer.getInt32(false);
+        var InOutFlag = this._buffer.getInt32(false);
+        this._buffer.skip(4);
+        var BufSize = this._buffer.getInt32(false);
+        this._buffer.skip(4*6);
+
+        var data_type = '';
+        switch (BitWidth) {
+            case 0:
+                data_type = 'NPU_S8BIT';
+                break;
+            case 1:
+                data_type = 'NPU_U8BIT';
+                break;
+            case 2:
+                data_type = 'NPU_S16BIT';
+                break;
+            case 3:
+                data_type = 'NPU_U16BIT';
+                break;
         }
-        return null;
-    }
+        data_type = data_type + ', ShiftBit: ' + ShiftBits;
+
+        return new npu.Tensor(BufId, new npu.TensorType(data_type, new npu.TensorShape([c,h,w])), null);
+	}
 };
 
-ncnn.BinaryReader = class {
+npu.BlobReader768v8 = class {
+
+    constructor(buffer) {
+        this._buffer = buffer;
+		this._name = '';
+    }
+
+    getBlob() {
+        var n = this._buffer.getInt16(false);
+        var c = this._buffer.getInt16(false);
+        var h = this._buffer.getInt16(false);
+        var w = this._buffer.getInt16(false);
+        var PadType = this._buffer.getInt16(false);
+        var PadTop = this._buffer.getInt16(false);
+        var PadBottom = this._buffer.getInt16(false);
+        var PadLeft = this._buffer.getInt16(false);
+        var PadRight = this._buffer.getInt16(false);
+        var MaxPadTop = this._buffer.getInt16(false);
+        var MaxPadBottom = this._buffer.getInt16(false);
+        var BitWidth = this._buffer.getInt16(false);
+        var Transposed = this._buffer.getInt16(false);
+        var Align = this._buffer.getInt16(false);
+        this._buffer.skip(16);
+        var ShiftBits = this._buffer.getInt32(true);
+        var Scale = this._buffer.getFloat32();
+        var Stride = this._buffer.getInt32(false);
+        var BufId = this._buffer.getInt32(false);
+        var FileOffset = this._buffer.getInt32(false);
+        var Offset = this._buffer.getInt32(false);
+        var InOutFlag = this._buffer.getInt32(false);
+        var BufSize = this._buffer.getInt32(false);
+        this._buffer.skip(20);
+
+        var data_type = '';
+        switch (BitWidth) {
+            case 0:
+                data_type = 'NPU_S8BIT';
+                break;
+            case 1:
+                data_type = 'NPU_U8BIT';
+                break;
+            case 2:
+                data_type = 'NPU_S16BIT';
+                break;
+            case 3:
+                data_type = 'NPU_U16BIT';
+                break;
+        }
+        data_type = data_type + ', ShiftBit: ' + ShiftBits;
+
+        return new npu.Tensor(BufId, new npu.TensorType(data_type, new npu.TensorShape([n,c,h,w])), null);
+	}
+};
+
+DataView.prototype.getString = function(offset, length){
+    var end = typeof length == 'number' ? offset + length : this.byteLength;
+    var text = '';
+    var val = -1;
+
+    while (offset < this.byteLength && offset < end){
+        val = this.getUint8(offset++);
+        if (val == 0) break;
+        text += String.fromCharCode(val);
+    }
+
+    return text;
+};
+
+npu.BinaryReader = class {
 
     constructor(buffer) {
         this._buffer = buffer;
@@ -857,25 +973,66 @@ ncnn.BinaryReader = class {
     skip(size) {
         this._position += size;
         if (this._position > this._buffer.length) {
-            throw new ncnn.Error('Expected ' + (this._position - this._buffer.length) + ' more bytes. The file might be corrupted. Unexpected end of file.');
+            throw new npu.Error('Expected ' + (this._position - this._buffer.length) + ' more bytes. The file might be corrupted. Unexpected end of file.');
         }
     }
 
-    int32() {
+    getInt16(signed) {
+        const position = this._position;
+        this.skip(2);
+        this._dataView.set
+        if (signed) {
+            return this._dataView.getInt16(position, true);
+        } else{
+            return this._dataView.getUint16(position, true);
+        }
+    }
+
+    getInt32(signed) {
         const position = this._position;
         this.skip(4);
-        return this._dataView.getInt32(position, true);
+        this._dataView.set
+        if (signed) {
+            return this._dataView.getInt32(position, true);
+        } else{
+            return this._dataView.getUint32(position, true);
+        }
+    }
+
+    getInt64(signed) {
+        const position = this._position;
+        this.skip(8);
+        this._dataView.set
+        if (signed) {
+            return this._dataView.getBigInt64(position, true);
+        } else {
+            return this._dataView.getBigUint64(position, true);
+        }
+    }
+
+	getFloat32() {
+        const position = this._position;
+        this.skip(4);
+        this._dataView.set
+        return this._dataView.getFloat32(position, true);
+	}
+
+    getStr(len) {
+        const position = this._position;
+        this.skip(len);
+        this._dataView.set
+        return this._dataView.getString(position);
     }
 };
 
-ncnn.Error = class extends Error {
+npu.Error = class extends Error {
 
     constructor(message) {
         super(message);
-        this.name = 'Error loading ncnn model.';
+        this.name = 'Error loading npu model.';
     }
 };
 
 if (typeof module !== 'undefined' && typeof module.exports === 'object') {
-    module.exports.ModelFactory = ncnn.ModelFactory;
+    module.exports.ModelFactory = npu.ModelFactory;
 }

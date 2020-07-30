@@ -169,6 +169,11 @@ host.BrowserHost = class {
             accelerator: 'CmdOrCtrl+Alt+E',
             click: () => this._view.export(document.title + '.svg')
         });
+        this._menu.add({
+            label: 'Export JSON config',
+            accelerator: 'CmdOrCtrl+E',
+            click: () => this._view.export(document.title.split('.').shift().trim() + '.json')
+        });
         this.document.getElementById('menu-button').addEventListener('click', (e) => {
             this._menu.toggle();
             e.preventDefault();
