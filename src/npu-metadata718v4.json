@@ -1,0 +1,240 @@
+[
+  {
+    "name": "Convolution",
+    "schema": {
+      "Opera": 1,
+      "category": "Layer",
+      "inputs": [
+        { "name": "input" },
+        { "name": "filter" },
+        { "name": "bias" }
+      ],
+      "outputs": [
+        { "name": "output" }
+      ],
+      "attributes": [
+        { "name": "StrideR", "type": "uint32", "default": 1 },
+        { "name": "StrideC", "type": "uint32", "default": 1 },
+        { "name": "KernelSizeR", "type": "uint32", "default": 1 },
+        { "name": "KernelSizeC", "type": "uint32", "default": 1 },
+        { "name": "DilationStrideR", "type": "uint32", "default": 0 },
+        { "name": "DilationStrideC", "type": "uint32", "default": 0 },
+        { "name": "Groups", "type": "uint32", "default": 1 },
+        { "name": "Ceilmode", "type": "bit32", "default": 1 , "mask": 1 },
+        { "name": "JustForSkip", "type": "int32", "visible": false }
+      ]
+    }
+  },
+  {
+    "name": "ReLU",
+    "schema": {
+      "Opera": 2,
+      "category": "Activation",
+      "inputs": [
+        { "name": "input" }
+      ],
+      "outputs": [
+        { "name": "output" }
+      ],
+      "attributes": [
+        { "name": "NegSlope", "type": "int32", "default": 1 }
+      ]
+    }
+  },
+  {
+    "name": "Pooling",
+    "schema": {
+      "Opera": 4,
+      "category": "Pool",
+      "attributes": [
+        { "name": "Mode", "type": "uint32", "default": 0 },
+        { "name": "StrideR", "type": "uint32", "default": 1 },
+        { "name": "StrideC", "type": "uint32", "default": 1 },
+        { "name": "KernelSizeR", "type": "uint32", "default": 1 },
+        { "name": "KernelSizeC", "type": "uint32", "default": 1 },
+        { "name": "CeilMode", "type": "bit32", "default": 0 , "mask": 1 },
+        { "name": "JustForSkip", "type": "int32", "visible": false }
+      ],
+      "inputs": [
+        { "name": "input" }
+      ],
+      "outputs": [
+        { "name": "output" }
+      ]
+    }
+  },
+  {
+    "name": "ConvolutionPooling",
+    "schema": {
+      "Opera": 5,
+      "category": "Layer",
+      "attributes": [
+        { "name": "ConvStrideR", "type": "uint32", "default": 1 },
+        { "name": "ConvStrideC", "type": "uint32", "default": 1 },
+        { "name": "ConvKernelSizeR", "type": "uint32", "default": 1 },
+        { "name": "ConvKernelSizeC", "type": "uint32", "default": 1 },
+        { "name": "ConvDilationStrideR", "type": "uint32", "default": 0 },
+        { "name": "ConvDilationStrideC", "type": "uint32", "default": 0 },
+        { "name": "PoolStrideR", "type": "uint32", "default": 1 },
+        { "name": "PoolStrideC", "type": "uint32", "default": 1 },
+        { "name": "PoolKernelSizeR", "type": "uint32", "default": 1 },
+        { "name": "PoolKernelSizeC", "type": "uint32", "default": 1 },
+        { "name": "Groups", "type": "uint32", "default": 1 },
+        { "name": "ConvCeilMode", "type": "bit32", "default": 0 , "mask": 1 },
+        { "name": "PoolCeilMode", "type": "bit32", "default": 0 , "mask": 2 },
+        { "name": "JustForSkip", "type": "int32", "visible": false },
+        { "name": "PoolMode", "type": "uint32", "default": 0 }
+      ],
+      "inputs": [
+        { "name": "input" },
+        { "name": "filter" },
+        { "name": "bias" }
+      ],
+      "outputs": [
+        { "name": "output" }
+      ]
+    }
+  },
+  {
+    "name": "FC",
+    "schema": {
+      "Opera": 8,
+      "category": "Layer",
+      "attributes": [
+        { "name": "Reserved", "type": "uint32", "default": 0, "visible": false }
+      ],
+      "inputs": [
+        { "name": "inputs"},
+        { "name": "weights" },
+        { "name": "bias" }
+      ],
+      "outputs": [
+        { "name": "output" }
+      ]
+    }
+  },
+  {
+    "name": "Eltwise",
+    "schema": {
+      "Opera": 16,
+      "attributes": [
+        { "name": "Oper", "type": "uint32", "default": 0 }
+      ],
+      "inputs": [
+        { "name": "inputs", "option": "variadic" }
+      ],
+      "outputs": [
+        { "name": "output" }
+      ]
+    }
+  },
+  {
+    "name": "MemoryClear",
+    "schema": {
+      "Opera": 64,
+      "category": "Data",
+      "inputs": [
+        { "name": "input" }
+      ],
+      "outputs": [
+        { "name": "output" }
+      ],
+      "attributes": [
+        { "name": "Value", "type": "uint32", "default": 0 }
+      ]
+    }
+  },
+  {
+    "name": "Linear",
+    "schema": {
+      "Opera": 128,
+      "category": "Layer",
+      "inputs": [
+        { "name": "input" },
+        { "name": "scale" },
+        { "name": "bias" }
+      ],
+      "outputs": [
+        { "name": "output" }
+      ],
+      "attributes": [
+        { "name": "KMode", "type": "uint32" },
+        { "name": "BMode", "type": "uint32" },
+        { "name": "K", "type": "int32" },
+        { "name": "B", "type": "int32" }
+      ]
+    }
+  },
+  {
+    "name": "PReLU",
+    "schema": {
+      "Opera": 256,
+      "category": "Activation",
+      "inputs": [
+        { "name": "input" },
+        { "name": "slope" }
+      ],
+      "outputs": [
+        { "name": "output" }
+      ],
+      "attributes": [
+        { "name": "NegMode", "type": "uint32", "default": 0 },
+        { "name": "NegValue", "type": "int32", "default": 1 }
+      ]
+    }
+  },
+  {
+    "name": "Depthwise",
+    "schema": {
+      "Opera": 512,
+      "category": "Layer",
+      "attributes": [
+        { "name": "StrideR", "type": "uint32", "default": 1 },
+        { "name": "StrideC", "type": "uint32", "default": 1 },
+        { "name": "KernelSizeR", "type": "uint32", "default": 1 },
+        { "name": "KernelSizeC", "type": "uint32", "default": 1 },
+        { "name": "CeilMode", "type": "bit32", "default": 0 , "mask": 1 },
+        { "name": "JustForSkip", "type": "int32", "visible": false }
+      ],
+      "inputs": [
+        { "name": "input" },
+        { "name": "filter" },
+        { "name": "bias" }
+      ],
+      "outputs": [
+        { "name": "output" }
+      ]
+    }
+  },
+  {
+    "name": "CPULayer",
+    "schema": {
+      "Opera": 2147483648,
+      "category": "Activation",
+      "inputs": [
+        { "name": "input" }
+      ],
+      "outputs": [
+        { "name": "output" }
+      ],
+      "attributes": [
+        { "name": "Param00", "type": "uint32", "visible": false },
+        { "name": "Param01", "type": "uint32", "visible": false },
+        { "name": "Param02", "type": "uint32", "visible": false },
+        { "name": "Param03", "type": "uint32", "visible": false },
+        { "name": "Param04", "type": "uint32", "visible": false },
+        { "name": "Param05", "type": "uint32", "visible": false },
+        { "name": "Param06", "type": "uint32", "visible": false },
+        { "name": "Param07", "type": "uint32", "visible": false },
+        { "name": "Param08", "type": "uint32", "visible": false },
+        { "name": "Param09", "type": "uint32", "visible": false },
+        { "name": "Param10", "type": "uint32", "visible": false },
+        { "name": "Param11", "type": "uint32", "visible": false },
+        { "name": "Param12", "type": "uint32", "visible": false },
+        { "name": "Param13", "type": "uint32", "visible": false },
+        { "name": "Param14", "type": "uint32", "visible": false },
+        { "name": "Param15", "type": "uint32", "visible": false }
+      ]
+    }
+  }
+]
