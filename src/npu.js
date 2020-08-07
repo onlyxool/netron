@@ -301,7 +301,10 @@ npu.Tensor = class {
         return this._id;
     }
     get kind() {
-        return 'Weight';
+        return this._kind;
+    }
+    set kind(input_str) {
+        this._kind = input_str;
     }
 
     get type() {
@@ -309,7 +312,10 @@ npu.Tensor = class {
     }
 
     get state() {
-        return this._context().state || null;
+        return this._state || null;
+    }
+    set state(input_str) {
+        this._state = input_str;
     }
 
     get value() {
@@ -422,7 +428,7 @@ npu.TensorType = class {
     }
 
     toString() {
-        return this._dataType + this._shape.toString();
+        return this._dataType + ' Shape:' + this._shape.toString();
     }
 };
 
@@ -575,6 +581,7 @@ npu.Binary718v4Reader = class {
         const meta_input_blobs = metadata.type(node.type).inputs;
         for (const meta_input_blob of meta_input_blobs) {
             var blob = inputs.shift();
+            blob.kind = meta_input_blob.name;
             if (blob !== null) {
                 var blob_arg = new npu.Argument(blob.id.toString(), meta_input_blob.name, blob);
                 node.append_inputs(new npu.Parameter(meta_input_blob.name, true, [blob_arg]));
@@ -584,6 +591,7 @@ npu.Binary718v4Reader = class {
         const meta_output_blobs = metadata.type(node.type).outputs;
         for (const meta_output_blob of meta_output_blobs) {
             var blob = outputs.shift();
+            blob.kind = meta_output_blob.name;
             if (blob !== null) {
                 var blob_arg = new npu.Argument(blob.id.toString(), meta_output_blob.name, blob);
                 node.append_outputs(new npu.Parameter(meta_output_blob.name, true, [blob_arg]));
@@ -709,6 +717,7 @@ npu.Binary768v8Reader = class {
         const meta_input_blobs = metadata.type(node.type).inputs;
         for (const meta_input_blob of meta_input_blobs) {
             var blob = inputs.shift();
+            blob.kind = meta_input_blob.name;
             if (blob !== null) {
     			var blob_arg = new npu.Argument(blob.id.toString(), meta_input_blob.name, blob);
                 node.append_inputs(new npu.Parameter(meta_input_blob.name, true, [blob_arg]));
@@ -718,6 +727,7 @@ npu.Binary768v8Reader = class {
         const meta_output_blobs = metadata.type(node.type).outputs;
         for (const meta_output_blob of meta_output_blobs) {
             var blob = outputs.shift();
+            blob.kind = meta_output_blob.name;
             if (blob !== null) {
     			var blob_arg = new npu.Argument(blob.id.toString(), meta_output_blob.name, blob);
                 node.append_outputs(new npu.Parameter(meta_output_blob.name, true, [blob_arg]));
@@ -839,21 +849,26 @@ npu.BlobReader718v4 = class {
         var data_type = '';
         switch (BitWidth) {
             case 0:
-                data_type = 'NPU_S8BIT';
+                data_type = 'S8Bit';
                 break;
             case 1:
-                data_type = 'NPU_U8BIT';
+                data_type = 'U8Bit';
                 break;
             case 2:
-                data_type = 'NPU_S16BIT';
+                data_type = 'S16Bit';
                 break;
             case 3:
-                data_type = 'NPU_U16BIT';
+                data_type = 'U16Bit';
                 break;
         }
-        data_type = data_type + ', ShiftBit: ' + ShiftBits;
+        data_type = data_type + ', ShiftBit:' + ShiftBits;
+        var tensor = new npu.Tensor(BufId, new npu.TensorType(data_type, new npu.TensorShape([c,h,w])), null);
+        tensor.state = 'Pad('+ PadMode + '):[' + PadTop + ',' + PadBottom + ',' + PadLeft + ',' + PadRight + ']\n';
+        tensor.state = tensor.state + 'FileOffset: 0x' + FileOffset.toString(16) + '\n';
+        tensor.state = tensor.state + 'Offset: 0x' + Offset.toString(16) + '\n';
+        tensor.state = tensor.state + 'InOutFlag:' + InOutFlag;
 
-        return new npu.Tensor(BufId, new npu.TensorType(data_type, new npu.TensorShape([c,h,w])), null);
+        return tensor;
     }
 };
 
@@ -893,21 +908,27 @@ npu.BlobReader768v8 = class {
         var data_type = '';
         switch (BitWidth) {
             case 0:
-                data_type = 'NPU_S8BIT';
+                data_type = 'S8Bit';
                 break;
             case 1:
-                data_type = 'NPU_U8BIT';
+                data_type = 'U8Bit';
                 break;
             case 2:
-                data_type = 'NPU_S16BIT';
+                data_type = 'S16Bit';
                 break;
             case 3:
-                data_type = 'NPU_U16BIT';
+                data_type = 'U16Bit';
                 break;
         }
-        data_type = data_type + ', ShiftBit: ' + ShiftBits;
+        data_type = data_type + ', ShiftBit:' + ShiftBits;
+        var tensor = new npu.Tensor(BufId, new npu.TensorType(data_type, new npu.TensorShape([n,c,h,w])), null);
+        tensor.state = 'Pad('+ PadType + '):[' + PadTop + ',' + PadBottom + ',' + PadLeft + ',' + PadRight + ']\n';
+        tensor.state = tensor.state + 'fScale:' + Scale + '\n';
+        tensor.state = tensor.state + 'FileOffset: 0x' + FileOffset.toString(16) + '\n';
+        tensor.state = tensor.state + 'Offset: 0x' + Offset.toString(16) + '\n';
+        tensor.state = tensor.state + 'InOutFlag:' + InOutFlag;
 
-        return new npu.Tensor(BufId, new npu.TensorType(data_type, new npu.TensorShape([n,c,h,w])), null);
+        return tensor;
     }
 };
 

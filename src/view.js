@@ -1048,7 +1048,7 @@ class ModelContext {
 
     get text() {
         if (!this._text) {
-            this._text = new TextDecoder('utf-8', { fatal: true }).decode(this.buffer);
+            this._text = new TextDecoder('utf-8').decode(this.buffer);
         }
         return this._text;
     }

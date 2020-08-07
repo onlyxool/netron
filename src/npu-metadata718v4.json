@@ -6,7 +6,7 @@
       "category": "Layer",
       "inputs": [
         { "name": "input" },
-        { "name": "filter" },
+        { "name": "weight" },
         { "name": "bias" }
       ],
       "outputs": [
@@ -87,7 +87,7 @@
       ],
       "inputs": [
         { "name": "input" },
-        { "name": "filter" },
+        { "name": "weight" },
         { "name": "bias" }
       ],
       "outputs": [
@@ -198,7 +198,7 @@
       ],
       "inputs": [
         { "name": "input" },
-        { "name": "filter" },
+        { "name": "weight" },
         { "name": "bias" }
       ],
       "outputs": [

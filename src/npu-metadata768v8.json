@@ -6,7 +6,7 @@
       "category": "Layer",
       "inputs": [
         { "name": "input" },
-        { "name": "filter" },
+        { "name": "weight" },
         { "name": "bias" }
       ],
       "outputs": [
@@ -81,7 +81,7 @@
       ],
       "inputs": [
         { "name": "input" },
-        { "name": "filter" },
+        { "name": "weight" },
         { "name": "bias" }
       ],
       "outputs": [
@@ -129,7 +129,7 @@
       "category": "Layer",
       "inputs": [
         { "name": "input" },
-        { "name": "filter" },
+        { "name": "weight" },
         { "name": "bias" }
       ],
       "outputs": [
@@ -221,7 +221,7 @@
       ],
       "inputs": [
         { "name": "input" },
-        { "name": "filter" },
+        { "name": "weight" },
         { "name": "bias" }
       ],
       "outputs": [
@@ -236,7 +236,7 @@
       "category": "Activation",
       "inputs": [
         { "name": "input" },
-        { "name": "filter" }
+        { "name": "weight" }
       ],
       "outputs": [
         { "name": "output" }
@@ -285,7 +285,7 @@
       ],
       "inputs": [
         { "name": "input" },
-        { "name": "filter" },
+        { "name": "weight" },
         { "name": "bias" }
       ],
       "outputs": [
