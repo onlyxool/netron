@@ -115,7 +115,8 @@
         { "name": "Oper", "type": "uint16", "default": 0 }
       ],
       "inputs": [
-        { "name": "inputs", "option": "variadic" }
+        { "name": "inputs" },
+        { "name": "inputs" }
       ],
       "outputs": [
         { "name": "output" }

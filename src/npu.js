@@ -581,8 +581,8 @@ npu.Binary718v4Reader = class {
         const meta_input_blobs = metadata.type(node.type).inputs;
         for (const meta_input_blob of meta_input_blobs) {
             var blob = inputs.shift();
-            blob.kind = meta_input_blob.name;
             if (blob !== null) {
+                blob.kind = meta_input_blob.name;
                 var blob_arg = new npu.Argument(blob.id.toString(), meta_input_blob.name, blob);
                 node.append_inputs(new npu.Parameter(meta_input_blob.name, true, [blob_arg]));
             }
@@ -591,8 +591,8 @@ npu.Binary718v4Reader = class {
         const meta_output_blobs = metadata.type(node.type).outputs;
         for (const meta_output_blob of meta_output_blobs) {
             var blob = outputs.shift();
-            blob.kind = meta_output_blob.name;
             if (blob !== null) {
+                blob.kind = meta_output_blob.name;
                 var blob_arg = new npu.Argument(blob.id.toString(), meta_output_blob.name, blob);
                 node.append_outputs(new npu.Parameter(meta_output_blob.name, true, [blob_arg]));
             }
@@ -660,7 +660,7 @@ npu.Binary768v8Reader = class {
         var outputs = [];
         for (let i = 1; i <= 4; i++) {
             if (i <= in_num) {
-                const blob_reader = new npu.BlobReader768v8(this.reader)
+                const blob_reader = new npu.BlobReader768v8(this.reader);
                 inputs.push(blob_reader.getBlob());
             } else {
                 inputs.push(null);
@@ -670,7 +670,7 @@ npu.Binary768v8Reader = class {
 
         for (let o = 1; o <= 2; o++) {
             if (o <= out_num) {
-                const blob_reader = new npu.BlobReader768v8(this.reader)
+                const blob_reader = new npu.BlobReader768v8(this.reader);
                 outputs.push(blob_reader.getBlob());
             } else {
                 outputs.push(null);
@@ -717,8 +717,8 @@ npu.Binary768v8Reader = class {
         const meta_input_blobs = metadata.type(node.type).inputs;
         for (const meta_input_blob of meta_input_blobs) {
             var blob = inputs.shift();
-            blob.kind = meta_input_blob.name;
             if (blob !== null) {
+                blob.kind = meta_input_blob.name;
     			var blob_arg = new npu.Argument(blob.id.toString(), meta_input_blob.name, blob);
                 node.append_inputs(new npu.Parameter(meta_input_blob.name, true, [blob_arg]));
             }
@@ -727,8 +727,8 @@ npu.Binary768v8Reader = class {
         const meta_output_blobs = metadata.type(node.type).outputs;
         for (const meta_output_blob of meta_output_blobs) {
             var blob = outputs.shift();
-            blob.kind = meta_output_blob.name;
             if (blob !== null) {
+                blob.kind = meta_output_blob.name;
     			var blob_arg = new npu.Argument(blob.id.toString(), meta_output_blob.name, blob);
                 node.append_outputs(new npu.Parameter(meta_output_blob.name, true, [blob_arg]));
             }
@@ -754,67 +754,6 @@ npu.Binary768v8Reader = class {
         this.reader.skip(longest_param - current_param_length);
 
         return node;
-    }
-};
-
-npu.BinaryParamReader = class {
-
-    constructor(metadata, buffer) {
-        const reader = new npu.BinaryReader(buffer);
-        if (reader.getInt32() !== 0x007685DD) {
-            throw new npu.Error('Invalid signature.');
-        }
-        const layerCount = reader.getInt32();
-        /* const blobCount = */ reader.getInt32();
-        const layers = [];
-        for (let i = 0; i < layerCount; i++) {
-            const typeIndex = reader.getInt32();
-            const operator = metadata.operator(typeIndex);
-            const layer = {
-                type: operator || typeIndex.toString(),
-                name: i.toString(),
-                inputs: [],
-                outputs: [],
-                attr: {},
-                attributes: []
-            };
-            const inputCount = reader.getInt32();
-            const outputCount = reader.getInt32();
-            for (let j = 0; j < inputCount; j++) {
-                layer.inputs.push(reader.getInt32().toString());
-            }
-            for (let j = 0; j < outputCount; j++) {
-                layer.outputs.push(reader.getInt32().toString());
-            }
-            let id = reader.getInt32();
-            while (id != -233) {
-                let isArray = id <= -23300;
-                if (isArray) {
-                    id = -id - 23300;
-                }
-                if (isArray) {
-                    const len = reader.getInt32();
-                    const values = [];
-                    for (let i = 0; i < len; i++) {
-                        values.push(reader.getInt32());
-                    }
-                    layer.attributes.push({ key: id.toString(), value: values.toString() });
-                    layer.attr[id.toString()] = values;
-                }
-                else {
-                    const value = reader.getInt32();
-                    layer.attributes.push({ key: id.toString(), value: value.toString() });
-                    layer.attr[id.toString()] = value.toString();
-                }
-                id = reader.getInt32();
-            }
-            layers.push(layer);
-        }
-        this._layers = layers;
-    }
-
-    get layers() {
-        return this._layers;
     }
 };
 
