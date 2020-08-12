@@ -574,6 +574,9 @@ npu.Binary718v4Reader = class {
         }
 
         var opera_code = this.reader.getInt32(false);
+        if ((opera_code & 0x2) && (opera_code != 0x2)) {
+            opera_code = opera_code & ~(opera_code & 0x2)
+        }
         this.reader.skip(3*4);
         node.name = this.reader.getStr(32);
         node.type = metadata.operator(opera_code);
