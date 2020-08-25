@@ -121,6 +121,7 @@
         { "name": "Oper", "type": "uint32", "default": 0 }
       ],
       "inputs": [
+        { "name": "input", "option": "variadic" },
         { "name": "input", "option": "variadic" }
       ],
       "outputs": [
@@ -210,12 +211,12 @@
     "name": "CPULayer",
     "schema": {
       "Opera": 2147483648,
-      "category": "Activation",
+      "category": "Layer",
       "inputs": [
-        { "name": "input" }
+        { "name": "input", "option": "variadic" }
       ],
       "outputs": [
-        { "name": "output" }
+        { "name": "output", "option": "variadic" }
       ],
       "attributes": [
         { "name": "Param00", "type": "uint32", "visible": false },
