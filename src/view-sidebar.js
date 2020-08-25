@@ -1234,10 +1234,11 @@ sidebar.FindSidebar = class {
                 ((name.toLowerCase().indexOf(text) != -1) ||
                 (operator && operator.toLowerCase().indexOf(text) != -1))) {
                 const nameItem = this._host.document.createElement('li');
-                nameItem.innerText = '\u25A2 ' + node.name;
+                nameItem.innerText = '\u25A2 ' + node.name + '-fuck';
                 nameItem.id = 'node-' + node.name;
                 this._resultElement.appendChild(nameItem);
                 nodeMatches.add(node.name);
+                console.log(nameItem);
             }
 
             for (const initializer of initializers) {

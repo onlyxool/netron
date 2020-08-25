@@ -551,7 +551,7 @@ view.View = class {
                             const inputs = node.inputs;
                             for (const input of inputs) {
                                 for (const argument of input.arguments) {
-                                    if (argument.name != '') {
+                                    if (argument.name != '' && !argument.initializer) {
                                         let tuple = edgeMap[argument.name];
                                         if (!tuple) {
                                             tuple = { from: null, to: [] };

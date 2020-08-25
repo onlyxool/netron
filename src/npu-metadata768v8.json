@@ -98,7 +98,7 @@
         { "name": "Reserved", "type": "uint16", "default": 0, "visible": false }
       ],
       "inputs": [
-        { "name": "inputs"},
+        { "name": "input"},
         { "name": "weights" },
         { "name": "bias" }
       ],
@@ -115,8 +115,8 @@
         { "name": "Oper", "type": "uint16", "default": 0 }
       ],
       "inputs": [
-        { "name": "inputs" },
-        { "name": "inputs" }
+        { "name": "input" },
+        { "name": "input" }
       ],
       "outputs": [
         { "name": "output" }

@@ -104,7 +104,7 @@
         { "name": "Reserved", "type": "uint32", "default": 0, "visible": false }
       ],
       "inputs": [
-        { "name": "inputs"},
+        { "name": "input"},
         { "name": "weights" },
         { "name": "bias" }
       ],
@@ -121,7 +121,7 @@
         { "name": "Oper", "type": "uint32", "default": 0 }
       ],
       "inputs": [
-        { "name": "inputs", "option": "variadic" }
+        { "name": "input", "option": "variadic" }
       ],
       "outputs": [
         { "name": "output" }
