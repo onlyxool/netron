@@ -142,6 +142,7 @@ npu.Argument = class {
         this._initializer = null;
         this._shape = shape;
         this._description = description;
+        this._ioflag = false;
     }
 
     set description(input_str) {
@@ -169,6 +170,13 @@ npu.Argument = class {
         return this._shape;
     }
 
+    set ioflag(input_bool) {
+         this._ioflag = input_bool;
+    }
+    get ioflag() {
+        return this._ioflag;
+    }
+
     set initializer(input_obj) {
         this._initializer = input_obj;
     }
@@ -186,6 +194,8 @@ npu.Node = class {
         this._attributes = [];
         this._type = '';
         this._name = '';
+        this._iflag = false;
+        this._oflag = false;
     }
 
     get type() {
@@ -200,6 +210,20 @@ npu.Node = class {
     }
     set name(input_str) {
         this._name = input_str;
+    }
+
+    set iflag(input_bool) {
+        this._iflag = input_bool;
+    }
+    get iflag() {
+        return this._iflag;
+    }
+
+    set oflag(input_bool) {
+        this._oflag = input_bool;
+    }
+    get oflag() {
+        return this._oflag;
     }
 
     get metadata() {
@@ -612,6 +636,10 @@ npu.Binary718v4Reader = class {
                 } else {
                     blob.initializer = null;
                 }
+                if (blob.ioflag && !node.iflag) {
+                    node.name = node.name + '-<input>';
+                    node.iflag = true;
+                }
                 node.append_inputs(new npu.Parameter(meta_input_blob.name, true, [blob]));
             }
         }
@@ -625,6 +653,10 @@ npu.Binary718v4Reader = class {
                     blob.initializer.kind = meta_output_blob.name;
                 } else {
                     blob.initializer = null;
+                }
+                if (blob.ioflag && !node.oflag) {
+                    node.name = node.name + '-<output>';
+                    node.oflag = true;
                 }
                 node.append_outputs(new npu.Parameter(meta_output_blob.name, true, [blob]));
             }
@@ -756,6 +788,10 @@ npu.Binary768v8Reader = class {
                 } else {
                     blob.initializer = null;
                 }
+                if (blob.ioflag && !node.iflag) {
+                    node.name = node.name + '-<input>';
+                    node.iflag = true;
+                }
                 node.append_inputs(new npu.Parameter(meta_input_blob.name, true, [blob]));
             }
         }
@@ -769,6 +805,10 @@ npu.Binary768v8Reader = class {
                     blob.initializer.kind = meta_output_blob.name;
                 } else {
                     blob.initializer = null;
+                }
+                if (blob.ioflag && !node.oflag) {
+                    node.name = node.name + '-<output>';
+                    node.oflag = true;
                 }
                 node.append_outputs(new npu.Parameter(meta_output_blob.name, true, [blob]));
             }
@@ -801,7 +841,6 @@ npu.BlobReader718v4 = class {
 
     constructor(buffer) {
         this._buffer = buffer;
-        this._name = '';
     }
 
     getBlob() {
@@ -861,7 +900,9 @@ npu.BlobReader718v4 = class {
         description = description + 'Offset: 0x' + Offset.toString(16) + '<br/>';
         description = description + 'InOutFlag:' + InOutFlag + '<b/>';
 
-        var blob = new npu.Argument(BufId.toString(), type, [c,h,w], description);
+        var name = (InOutFlag == 1) ? BufId.toString() + '-io' : BufId.toString();
+        var blob = new npu.Argument(name, type, [c,h,w], description);
+        blob.ioflag = (InOutFlag == 1) ? true : false;
         blob.initiallizer = null;
 
         return blob;
@@ -872,7 +913,6 @@ npu.BlobReader768v8 = class {
 
     constructor(buffer) {
         this._buffer = buffer;
-        this._name = '';
     }
 
     getBlob() {
@@ -938,7 +978,9 @@ npu.BlobReader768v8 = class {
         description = description + 'Offset: 0x' + Offset.toString(16) + '<br/>';
         description = description + 'InOutFlag:' + InOutFlag + '<b/>';
 
-        var blob = new npu.Argument(BufId.toString(), type, [n,c,h,w], description);
+        var name = (InOutFlag == 1) ? BufId.toString() + '-io' : BufId.toString();
+        var blob = new npu.Argument(name, type, [n,c,h,w], description);
+        blob.ioflag = (InOutFlag == 1) ? true : false;
         blob.initiallizer = null;
 
         return blob;
