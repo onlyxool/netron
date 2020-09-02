@@ -968,6 +968,9 @@ view.View = class {
 
     showNodeProperties(node, input) {
         if (node) {
+            if (this._model.format != 'npu') {
+                this._json = null;
+            }
             const nodeSidebar = new sidebar.NodeSidebar(this._host, node, this._json);
             nodeSidebar.on('show-documentation', (/* sender, e */) => {
                 this.showNodeDocumentation(node);

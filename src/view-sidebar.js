@@ -200,10 +200,12 @@ sidebar.NodeSidebar = class {
             }
         }
 
-        this._addHeader('16Bits');
-        const bits = new sidebar.IoCheckbox(this._host, node.name, json);
-        this._outputs.push(bits);
-        this._elements.push(bits.render());
+        if (json != null) {
+            this._addHeader('16Bits');
+            const bits = new sidebar.IoCheckbox(this._host, node.name, json);
+            this._outputs.push(bits);
+            this._elements.push(bits.render());
+        }
 
         const divider = this._host.document.createElement('div');
         divider.setAttribute('style', 'margin-bottom: 20px');
