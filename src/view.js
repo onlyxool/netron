@@ -554,7 +554,7 @@ view.View = class {
                                     if (argument.name != '' && !argument.initializer) {
                                         let tuple = edgeMap[argument.name];
                                         if (!tuple) {
-                                            tuple = { from: null, to: [] };
+                                            tuple = { from: [], to: [] };
                                             edgeMap[argument.name] = tuple;
                                         }
                                         tuple.to.push({
@@ -576,14 +576,14 @@ view.View = class {
                                     if (argument.name != '') {
                                         let tuple = edgeMap[argument.name];
                                         if (!tuple) {
-                                            tuple = { from: null, to: [] };
+                                            tuple = { from: [], to: [] };
                                             edgeMap[argument.name] = tuple;
                                         }
-                                        tuple.from = {
+                                        tuple.from.push({
                                             node: nodeId,
                                             name: output.name,
                                             type: argument.type
-                                        };
+                                        });
                                     }
                                 }
                             }
@@ -606,7 +606,7 @@ view.View = class {
                         for (const controlDependency of node.controlDependencies) {
                             let tuple = edgeMap[controlDependency];
                             if (!tuple) {
-                                tuple = { from: null, to: [] };
+                                tuple = { from: [], to: [] };
                                 edgeMap[controlDependency] = tuple;
                             }
                             tuple.to.push({
@@ -667,13 +667,13 @@ view.View = class {
                     for (const argument of input.arguments) {
                         let tuple = edgeMap[argument.name];
                         if (!tuple) {
-                            tuple = { from: null, to: [] };
+                            tuple = { from: [], to: [] };
                             edgeMap[argument.name] = tuple;
                         }
-                        tuple.from = {
+                        tuple.from.push({
                             node: nodeId,
                             type: argument.type
-                        };
+                        });
                     }
                     const types = input.arguments.map((argument) => argument.type || '').join('\n');
                     let inputName = input.name || '';
@@ -693,7 +693,7 @@ view.View = class {
                     for (const argument of output.arguments) {
                         let tuple = edgeMap[argument.name];
                         if (!tuple) {
-                            tuple = { from: null, to: [] };
+                            tuple = { from: [], to: [] };
                             edgeMap[argument.name] = tuple;
                         }
                         tuple.to.push({ node: nodeId });
@@ -714,10 +714,11 @@ view.View = class {
 
                 for (const edge of Object.keys(edgeMap)) {
                     const tuple = edgeMap[edge];
-                    if (tuple.from != null) {
+                    for (const from of tuple.from) {
+                    if (from != null) {
                         for (const to of tuple.to) {
                             let text = '';
-                            const type = tuple.from.type;
+                            const type = from.type;
                             if (type && type.shape && type.shape.dimensions && type.shape.dimensions.length > 0) {
                                 text = type.shape.dimensions.join('\u00D7');
                             }
@@ -727,12 +728,13 @@ view.View = class {
                             }
 
                             if (to.controlDependency) {
-                                g.setEdge(tuple.from.node, to.node, { label: text, id: 'edge-' + edge, arrowhead: 'vee', class: 'edge-path-control-dependency' } );
+                                g.setEdge(from.node, to.node, { label: text, id: 'edge-' + edge, arrowhead: 'vee', class: 'edge-path-control-dependency' } );
                             }
                             else {
-                                g.setEdge(tuple.from.node, to.node, { label: text, id: 'edge-' + edge, arrowhead: 'vee' } );
+                                g.setEdge(from.node, to.node, { label: text, id: 'edge-' + edge, arrowhead: 'vee' } );
                             }
                         }
+                    }
                     }
                 }
 
