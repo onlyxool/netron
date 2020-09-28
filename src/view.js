@@ -970,7 +970,7 @@ view.View = class {
 
     showNodeProperties(node, input) {
         if (node) {
-            if (this._model.format != 'npu') {
+            if (this._model.format.search('Caffe') == -1) {
                 this._json = null;
             }
             const nodeSidebar = new sidebar.NodeSidebar(this._host, node, this._json);
