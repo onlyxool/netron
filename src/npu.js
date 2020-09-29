@@ -92,8 +92,20 @@ npu.Graph = class {
         }
 
         Layer_num = model.Layer_num;
+        let lastLayer = null;
+        let lastTop = null;
         for (let i = 1; i <= model.Layer_num; i++) {
-            this._nodes.push(model.getLayer(metadata));
+            var node = model.getLayer(metadata);
+            let input_name = node.inputs[0].arguments[0].name;
+            let output_name = node.outputs[0].arguments[0].name;
+            if (input_name == output_name && input_name == lastTop && lastLayer) { //inplace
+                lastLayer.chain = lastLayer.chain || [];
+                lastLayer.chain.push(node);
+            } else {
+                lastLayer = node;
+                lastTop = node.outputs[0].arguments[0].name;
+                this._nodes.push(node);
+            }
         }
     }
 
