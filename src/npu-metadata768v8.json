@@ -93,7 +93,7 @@
     "name": "FC",
     "schema": {
       "Opera": 8,
-      "category": "Layer",
+      "category": "Activation",
       "attributes": [
         { "name": "Reserved", "type": "uint16", "default": 0, "visible": false }
       ],
@@ -171,7 +171,7 @@
     "name": "Linear",
     "schema": {
       "Opera": 128,
-      "category": "Layer",
+      "category": "Data",
       "inputs": [
         { "name": "input" },
         { "name": "scale" },
