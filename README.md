@@ -1,5 +1,5 @@
 
-<p align='center'><a href='https://github.com/lutzroeder/netron'><img width='400' src='.github/logo.png'/></a></p>
+<p align='center'><a href='https://github.com/lutzroeder/netron'><img width='400' src='.github/logo.svg'/></a></p>
 
 Netron is a viewer for neural network, deep learning and machine learning models. 
 
@@ -19,7 +19,7 @@ Netron has experimental support for **TorchScript** (`.pt`, `.pth`), **PyTorch**
 
 **Browser**: [**Start**](https://www.lutzroeder.com/ai/netron) the browser version.
 
-**Python Server**: Run `pip install netron` and `netron [FILE]` or `import netron; netron.start('[FILE]')`.
+**Python Server**: Run `pip install netron` and `netron [FILE]` or `netron.start('[FILE]')`.
 
 ## Models
 

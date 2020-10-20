@@ -10,18 +10,20 @@ const child_process = require('child_process');
 const http = require('http');
 const https = require('https');
 const url = require('url');
-const protobuf = require('../src/protobuf');
-const flatbuffers = require('../src/flatbuffers');
-const sidebar = require('../src/view-sidebar.js');
-const view = require('../src/view.js');
-const zip = require('../src/zip');
-const gzip = require('../src/gzip');
-const tar = require('../src/tar');
-const base = require('../src/base');
+const json = require('../source/json');
+const protobuf = require('../source/protobuf');
+const flatbuffers = require('../source/flatbuffers');
+const sidebar = require('../source/view-sidebar.js');
+const view = require('../source/view.js');
+const zip = require('../source/zip');
+const gzip = require('../source/gzip');
+const tar = require('../source/tar');
+const base = require('../source/base');
 const xmldom = require('xmldom');
 
 global.Int64 = base.Int64;
 global.Uint64 = base.Uint64;
+global.json = json;
 global.protobuf = protobuf;
 global.flatbuffers = flatbuffers;
 global.DOMParser = xmldom.DOMParser;
@@ -58,8 +60,7 @@ global.TextDecoder = class {
     }
 };
 
-const filter = process.argv.length > 2 ? process.argv[2] : null;
-const type = filter ? filter.split('/').shift() : '';
+const filter = process.argv.length > 2 ? new RegExp('^' + process.argv[2].replace(/\./, '\\.').replace(/\*/, '.*')) : null;
 const dataFolder = __dirname + '/data';
 const items = JSON.parse(fs.readFileSync(__dirname + '/models.json', 'utf-8'));
 
@@ -92,7 +93,7 @@ class TestHost {
 
     require(id) {
         try {
-            const file = path.join(path.join(__dirname, '../src'), id + '.js');
+            const file = path.join(path.join(__dirname, '../source'), id + '.js');
             return Promise.resolve(require(file));
         }
         catch (error) {
@@ -101,7 +102,7 @@ class TestHost {
     }
 
     request(base, file, encoding) {
-        const pathname = path.join(base || path.join(__dirname, '../src'), file);
+        const pathname = path.join(base || path.join(__dirname, '../source'), file);
         if (!fs.existsSync(pathname)) {
             return Promise.reject(new Error("File not found '" + file + "'."));
         }
@@ -222,10 +223,10 @@ class HTMLElement {
     }
 
     getElementsByClassName(name) {
-        let elements = [];
+        const elements = [];
         for (const node of this._childNodes) {
             if (node instanceof HTMLElement) {
-                elements = elements.concat(node.getElementsByClassName(name));
+                elements.push(...node.getElementsByClassName(name));
                 if (node.hasAttribute('class') &&
                     node.getAttribute('class').split(' ').find((text) => text === name)) {
                     elements.push(node);
@@ -618,15 +619,11 @@ function next() {
         console.error("Property 'type' is required for item '" + JSON.stringify(item) + "'.");
         return;
     }
-    if (type && item.type !== type) {
-        next();
-        return;
-    }
     const targets = item.target.split(',');
     const target = targets[0];
     const folder = dataFolder + '/' + item.type;
     const name = item.type + '/' + target;
-    if (filter && !name.startsWith(filter)) {
+    if (filter && !filter.test(name)) {
         next();
         return;
     }

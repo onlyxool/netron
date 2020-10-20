@@ -133,7 +133,7 @@ def metadata():
                 schema['references'] = []
             schema['references'].append({ 'description': reference })
 
-    json_path = os.path.join(os.path.dirname(__file__), '../src/keras-metadata.json')
+    json_path = os.path.join(os.path.dirname(__file__), '../source/keras-metadata.json')
     json_file = open(json_path)
     json_root = json.loads(json_file.read())
     json_file.close()
@@ -192,7 +192,8 @@ def zoo():
             folder = os.path.dirname(file)
             if not os.path.exists(folder):
                 os.makedirs(folder)
-            model = pydoc.locate(type)()
+            model_type = pydoc.locate(type)
+            model = model_type(weights=None)
             model.save(file)
     if not os.environ.get('test'):
         os.environ['test'] = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../test'))
